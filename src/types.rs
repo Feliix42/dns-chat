@@ -38,25 +38,25 @@ pub enum RecordType {
     TXT
 }
 
-impl Into<u16> for RecordType {
-    fn into(self) -> u16 {
-        match self {
-            A => 1,
-            NS => 2,
-            MD => 3,
-            MF => 4,
-            CNAME => 5,
-            SOA => 6,
-            MB => 7,
-            MG => 8,
-            MR => 9,
-            NULL => 10,
-            WKS => 11,
-            PTR => 12,
-            HINFO => 13,
-            MINFO => 14,
-            MX => 15,
-            TXT => 16
+impl From<RecordType> for u16 {
+    fn from(data: RecordType) -> Self {
+        match data {
+            RecordType::A => 1,
+            RecordType::NS => 2,
+            RecordType::MD => 3,
+            RecordType::MF => 4,
+            RecordType::CNAME => 5,
+            RecordType::SOA => 6,
+            RecordType::MB => 7,
+            RecordType::MG => 8,
+            RecordType::MR => 9,
+            RecordType::NULL => 10,
+            RecordType::WKS => 11,
+            RecordType::PTR => 12,
+            RecordType::HINFO => 13,
+            RecordType::MINFO => 14,
+            RecordType::MX => 15,
+            RecordType::TXT => 16
         }
     }
 }
@@ -73,13 +73,13 @@ pub enum RecordClass {
     HS
 }
 
-impl Into<u16> for RecordClass {
-    fn into(self) -> u16 {
-        match self {
-            IN => 1,
-            CS => 2,
-            CH => 3,
-            HS => 4
+impl From<RecordClass> for u16 {
+    fn from(data: RecordClass) -> Self {
+        match data {
+            RecordClass::IN => 1,
+            RecordClass::CS => 2,
+            RecordClass::CH => 3,
+            RecordClass::HS => 4
         }
     }
 }
