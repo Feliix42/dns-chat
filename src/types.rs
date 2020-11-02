@@ -1,8 +1,9 @@
 //! A simple collection of DNS types, tailored towards the use in this application.
-//! 
+//!
 //! Since only a small fraction of the whole DNS specification is needed for this application, not everything has been implemented.
 
 /// Type Fields used in Reqource records and also in questions.
+#[derive(Debug, PartialEq)]
 pub enum RecordType {
     /// an IPv4 host address
     A,
@@ -35,7 +36,7 @@ pub enum RecordType {
     /// mail exchange
     MX,
     /// text string
-    TXT
+    TXT,
 }
 
 impl From<RecordType> for u16 {
@@ -56,12 +57,37 @@ impl From<RecordType> for u16 {
             RecordType::HINFO => 13,
             RecordType::MINFO => 14,
             RecordType::MX => 15,
-            RecordType::TXT => 16
+            RecordType::TXT => 16,
+        }
+    }
+}
+
+impl From<u16> for RecordType {
+    fn from(data: u16) -> Self {
+        match data {
+            1 => RecordType::A,
+            2 => RecordType::NS,
+            3 => RecordType::MD,
+            4 => RecordType::MF,
+            5 => RecordType::CNAME,
+            6 => RecordType::SOA,
+            7 => RecordType::MB,
+            8 => RecordType::MG,
+            9 => RecordType::MR,
+            10 => RecordType::NULL,
+            11 => RecordType::WKS,
+            12 => RecordType::PTR,
+            13 => RecordType::HINFO,
+            14 => RecordType::MINFO,
+            15 => RecordType::MX,
+            16 => RecordType::TXT,
+            _ => panic!("Unsupported Record Type {}", data),
         }
     }
 }
 
 /// The class of a resource record
+#[derive(Debug, PartialEq)]
 pub enum RecordClass {
     /// The Internet
     IN,
@@ -70,7 +96,7 @@ pub enum RecordClass {
     /// the CHAOS clas
     CH,
     /// Hesoid
-    HS
+    HS,
 }
 
 impl From<RecordClass> for u16 {
@@ -79,15 +105,28 @@ impl From<RecordClass> for u16 {
             RecordClass::IN => 1,
             RecordClass::CS => 2,
             RecordClass::CH => 3,
-            RecordClass::HS => 4
+            RecordClass::HS => 4,
+        }
+    }
+}
+
+impl From<u16> for RecordClass {
+    fn from(data: u16) -> Self {
+        match data {
+            1 => RecordClass::IN,
+            2 => RecordClass::CS,
+            3 => RecordClass::CH,
+            4 => RecordClass::HS,
+            _ => panic!("Unsupported Record Class {:?}", data.to_be_bytes()),
         }
     }
 }
 
 /// The RDTA field of a resource record. May not exceed 65,535 Bytes.
+#[derive(Debug, PartialEq)]
 pub enum RecordData {
-    /// A TXT record
-    Txt(String),
+    /// A TXT record. One String may not be longer than 255 bytes.
+    Txt(Vec<String>),
     /// Not supported record type
-    Unsupported
+    Unsupported,
 }
