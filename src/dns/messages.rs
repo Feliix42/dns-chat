@@ -2,7 +2,7 @@
 //!
 //! This module implements data structures and methods for interacting with DNS messages, as far as necessary for the purpose of this application.
 
-use crate::types::*;
+use super::types::*;
 use std::convert::TryFrom;
 
 /// A single DNS message.
