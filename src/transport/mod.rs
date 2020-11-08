@@ -1,13 +1,20 @@
-use chrono::{DateTime, Local};
 use crate::dns::messages::DNSMessage;
+use crate::dns::types::RecordData;
+use chrono::{DateTime, Local};
 use std::fmt;
 
-pub mod sender;
 pub mod receiver;
+pub mod sender;
+
+/// The maximum length of a message per DNS message. This is the maximum number of bytes a TXT record can hold minus 25 bytes for the timestamp.
+const MAX_MSG_LENGTH: usize = 65_254;
 
 /// Representation of a single timestamped message
-/// 
-/// Each Message may only be up to TODO bytes long due to constraints in the DNS standard.
+///
+/// ## Maximum Length
+/// Each message may only be up to 65,535 bytes long due to constraints in the DNS standard which requires that the length of the TXT record section (or any `RDATA` record for that matter) must be expressed by a unsigned 16 bit integer.
+/// Internal formatting additionally requires a length byte every 255 bytes, reducing the effective maximum length to 65,279 bytes split into 256 blocks.
+/// Additionally, 25 bytes are reserved for the message timestamp, bringing the length per message down to 65,254 bytes.
 #[derive(Debug)]
 pub struct ChatMessage {
     text: String,
@@ -15,14 +22,71 @@ pub struct ChatMessage {
 }
 
 impl ChatMessage {
-    pub fn from_str(msg: String) -> Vec<Self> {
-        unimplemented!()
+    /// Converts a string into a series of timestamped chat messages.
+    /// Should the length of the message exceed 65279 bytes, it is split into smaller chunks.
+    pub fn from_str(mut msg: String) -> Vec<Self> {
+        let timestamp = Local::now();
+
+        // check if we need to split the message in several parts
+        if msg.as_bytes().len() > MAX_MSG_LENGTH {
+            // compute the # of necessary splits
+            // TODO(feliix42): This could lead to an error when the message contains numerous badly aligned multi-byte characters and is sufficiently long. This would cause the string to be shifted to the right numerous times, outrunning the boudary calculated here. It's however very rare that this will happen.
+            let msg_count = msg.as_bytes().len() / MAX_MSG_LENGTH
+                + (msg.as_bytes().len() % MAX_MSG_LENGTH != 0) as usize;
+            let mut messages = Vec::new();
+
+            for _ in 0..(msg_count - 1) {
+                let remainder = if msg.is_char_boundary(MAX_MSG_LENGTH) {
+                    msg.split_off(MAX_MSG_LENGTH)
+                } else {
+                    msg.split_off(MAX_MSG_LENGTH - 1)
+                };
+
+                messages.push(Self {
+                    text: msg,
+                    sent: timestamp.clone(),
+                });
+                msg = remainder;
+            }
+
+            messages.push(Self {
+                text: msg,
+                sent: timestamp,
+            });
+
+            messages
+        } else {
+            vec![Self {
+                text: msg,
+                sent: timestamp,
+            }]
+        }
     }
 }
 
-impl Into<DNSMessage> for ChatMessage {
-    fn into(self) -> DNSMessage {
-        unimplemented!()
+impl Into<RecordData> for ChatMessage {
+    fn into(self) -> RecordData {
+        // append the time stamp to the message
+        let mut msg_str = self.text;
+        msg_str.insert_str(0, &self.sent.to_rfc3339());
+
+        let mut pos = 0;
+        let mut strings = Vec::new();
+
+        while !msg_str.is_empty() {
+            let offset = if msg_str.is_char_boundary(pos + 255) {
+                255
+            } else {
+                254
+            };
+
+            let remainder = msg_str.split_off(pos + offset);
+            strings.push(msg_str);
+            pos += offset;
+            msg_str = remainder;
+        }
+
+        RecordData::Txt(strings)
     }
 }
 

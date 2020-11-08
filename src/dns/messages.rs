@@ -262,7 +262,6 @@ struct DNSAnswer {
     pub ttl: u32,
     /// Length of the record data field
     pub data_length: u16,
-    // TODO(feliix42): Make the max length of a record data field obvious somewhere
     /// Record Data field
     pub record: RecordData,
 }

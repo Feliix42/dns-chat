@@ -122,7 +122,7 @@ impl From<u16> for RecordClass {
     }
 }
 
-/// The RDTA field of a resource record. May not exceed 65,535 Bytes.
+/// The RDATA field of a resource record. May not exceed 65,535 Bytes.
 #[derive(Debug, PartialEq)]
 pub enum RecordData {
     /// A TXT record. One String may not be longer than 255 bytes.
