@@ -114,7 +114,10 @@ fn poll_messages<A: ToSocketAddrs + Clone>(
         if !received.is_empty() {
             // is messages were received, convert them and send them back to the main thread
             for msg in received.drain(..) {
-                message_sender.send(ChatMessage::from(msg))?;
+                let chat_messages = ChatMessage::from_dns(msg);
+                for chat_msg in chat_messages {
+                    message_sender.send(chat_msg)?;
+                }
             }
         }
 

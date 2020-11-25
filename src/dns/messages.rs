@@ -11,11 +11,11 @@ use std::convert::TryFrom;
 #[derive(Debug, PartialEq)]
 pub struct DNSMessage {
     /// The DNS Header
-    header: DNSHeader,
+    pub header: DNSHeader,
     /// Question section of a DNS message
-    questions: Vec<DNSQuestion>,
+    pub questions: Vec<DNSQuestion>,
     /// Answer section of the DNS message
-    answers: Option<Vec<DNSAnswer>>,
+    pub answers: Option<Vec<DNSAnswer>>,
 }
 
 impl DNSMessage {
@@ -152,7 +152,7 @@ impl From<&[u8]> for DNSMessage {
 
 /// DNS header
 #[derive(Debug, Default, PartialEq)]
-struct DNSHeader {
+pub struct DNSHeader {
     /// A unique ID for referencing the request
     pub id: u16,
     /// Described whether the message is a question or a reply
@@ -212,7 +212,7 @@ impl From<&[u8]> for DNSHeader {
 
 /// A single DNS question
 #[derive(Debug, PartialEq)]
-struct DNSQuestion {
+pub struct DNSQuestion {
     /// Domain name in question.
     pub name: String,
     /// The type of record requested. Technically, the set of types supported here is just a subset of the types supported in RFC 1035, but supporting everything is not necessary.
@@ -251,7 +251,7 @@ impl DNSQuestion {
 
 /// A single reply to a DNS query.
 #[derive(Debug, PartialEq)]
-struct DNSAnswer {
+pub struct DNSAnswer {
     /// Domain name in question.
     pub name: String,
     /// The type of the transmitted record
