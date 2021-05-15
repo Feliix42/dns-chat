@@ -8,6 +8,7 @@ use std::thread;
 use std::time::Duration;
 
 mod dns;
+mod state;
 mod transport;
 mod tui;
 
@@ -20,12 +21,13 @@ fn main() -> std::io::Result<()> {
     let program = args[0].clone();
 
     let (msg_sender, rx) = mpsc::channel();
-    thread::spawn(move || run_sender(rx));
+    //thread::spawn(move || run_sender(rx));
 
     let (sx, msg_recv) = mpsc::channel();
-    std::thread::spawn(move || poll_messages(sx, "127.0.0.1:53"));
+    //thread::spawn(move || poll_messages(sx, "127.0.0.1:53"));
 
-    loop {}
+    tui::run(msg_sender, msg_recv);
+
     Ok(())
 }
 

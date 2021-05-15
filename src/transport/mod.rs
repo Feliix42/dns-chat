@@ -1,5 +1,5 @@
-use crate::dns::{messages::DNSMessage, types::RecordType};
 use crate::dns::types::RecordData;
+use crate::dns::{messages::DNSMessage, types::RecordType};
 use chrono::{DateTime, Local};
 use std::fmt;
 
@@ -66,7 +66,11 @@ impl ChatMessage {
     /// Converts a DNS message that was received into a vector of `ChatMessage` objects
     pub fn from_dns(dns_msg: DNSMessage) -> Vec<Self> {
         if let Some(mut answers) = dns_msg.answers {
-            answers.drain(..).filter(|m| m.rtype == RecordType::TXT).map(|m| ChatMessage::from(m.record)).collect()
+            answers
+                .drain(..)
+                .filter(|m| m.rtype == RecordType::TXT)
+                .map(|m| ChatMessage::from(m.record))
+                .collect()
         } else {
             Vec::with_capacity(0)
         }
