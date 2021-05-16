@@ -1,10 +1,14 @@
-use crate::state::State;
+use crate::state::{MoveDirection, State};
 use crate::transport::ChatMessage;
-use crossterm::terminal;
-use crossterm::ExecutableCommand;
-use std::io;
-use std::io::Write;
-use std::sync::mpsc::{Receiver, Sender};
+use crossterm::{
+    event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
+    terminal, ExecutableCommand,
+};
+use std::{
+    io::{self, Write},
+    sync::mpsc::{Receiver, Sender},
+    time::Duration,
+};
 use tui::{
     backend::CrosstermBackend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -47,11 +51,6 @@ impl<W: Write> Drop for Renderer<W> {
             .execute(terminal::LeaveAlternateScreen)
             .expect("Could not execute to stdout");
         terminal::disable_raw_mode().expect("Terminal doesn't support to disable raw mode");
-        if std::thread::panicking() {
-            eprintln!(
-                "termchat paniced, to log the error you can redirect stderror to a file, example: termchat 2> termchat_log",
-            );
-        }
     }
 }
 
@@ -65,39 +64,84 @@ pub fn run(
 ) -> Result<(), crossterm::ErrorKind> {
     let mut state = State::new();
 
-    let mut stdout = io::stdout();
-    terminal::enable_raw_mode()?;
-    stdout.execute(terminal::EnterAlternateScreen)?;
+    let stdout = io::stdout();
+    let mut renderer = Renderer::new(stdout)?;
 
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
+    //terminal.draw(|f| {
+    //let chunks = Layout::default()
+    //.direction(Direction::Vertical)
+    //.margin(1)
+    //.constraints([Constraint::Min(0), Constraint::Length(6)].as_ref())
+    //.split(f.size());
+    //let block = Block::default().title("Messages").borders(Borders::ALL);
+    //f.render_widget(block, chunks[0]);
 
-    terminal.draw(|f| {
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .margin(1)
-            .constraints([Constraint::Min(0), Constraint::Length(6)].as_ref())
-            .split(f.size());
-        let block = Block::default().title("Messages").borders(Borders::ALL);
-        f.render_widget(block, chunks[0]);
+    //let input_panel = Paragraph::new("")
+    //.block(Block::default().borders(Borders::ALL).title(Span::styled(
+    //"Compose",
+    //Style::default().add_modifier(Modifier::BOLD),
+    //)))
+    //.style(Style::default().fg(Color::White))
+    //.alignment(Alignment::Left);
+    //// let block = Block::default().title("Compose").borders(Borders::ALL);
+    //f.render_widget(input_panel, chunks[1]);
+    //f.set_cursor(chunks[1].x + 1, chunks[1].y + 1)
+    //})?;
 
-        let input_panel = Paragraph::new("")
-            .block(Block::default().borders(Borders::ALL).title(Span::styled(
-                "Compose",
-                Style::default().add_modifier(Modifier::BOLD),
-            )))
-            .style(Style::default().fg(Color::White))
-            .alignment(Alignment::Left);
-        // let block = Block::default().title("Compose").borders(Borders::ALL);
-        f.render_widget(input_panel, chunks[1]);
-        f.set_cursor(chunks[1].x + 1, chunks[1].y + 1)
-    })?;
-
-    loop {
+    'main: loop {
         // check for input from the Message receiver
+        if let Ok(msg) = recv.try_recv() {
+            state.add_received(msg);
+        }
+
         // and hear from terminal input queue
+        if event::poll(Duration::from_millis(50))? {
+            match event::read()? {
+                Event::Mouse(_) => (),
+                Event::Resize(_, _) => (),
+                Event::Key(KeyEvent { code, modifiers }) => match code {
+                    KeyCode::Char(character) => {
+                        if character == 'c' && modifiers.contains(KeyModifiers::CONTROL) {
+                            break 'main;
+                        } else {
+                            state.add_input_char(character);
+                        }
+                    }
+                    KeyCode::Enter => {
+                        for msg in state.generate_msg() {
+                            sender
+                                .send(msg)
+                                .expect("Message sender thread unavailable!");
+                        }
+                    }
+                    KeyCode::Delete => {
+                        state.delete();
+                    }
+                    KeyCode::Backspace => {
+                        state.delete_previous();
+                    }
+                    KeyCode::Left => {
+                        state.move_cursor(MoveDirection::Left);
+                    }
+                    KeyCode::Right => {
+                        state.move_cursor(MoveDirection::Right);
+                    }
+                    KeyCode::Home => {
+                        state.move_cursor(MoveDirection::Home);
+                    }
+                    KeyCode::End => {
+                        state.move_cursor(MoveDirection::End);
+                    }
+                    KeyCode::Esc => {
+                        break 'main;
+                    }
+                    _ => (),
+                },
+            }
+        }
 
         // call the renderer
+        renderer.render(&state)?;
     }
 
     Ok(())

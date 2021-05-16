@@ -15,7 +15,7 @@ const MAX_MSG_LENGTH: usize = 65_254;
 /// Each message may only be up to 65,535 bytes long due to constraints in the DNS standard which requires that the length of the TXT record section (or any `RDATA` record for that matter) must be expressed by a unsigned 16 bit integer.
 /// Internal formatting additionally requires a length byte every 255 bytes, reducing the effective maximum length to 65,279 bytes split into 256 blocks.
 /// Additionally, 25 bytes are reserved for the message timestamp, bringing the length per message down to 65,254 bytes.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ChatMessage {
     text: String,
     sent: DateTime<Local>,
