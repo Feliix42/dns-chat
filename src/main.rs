@@ -21,12 +21,14 @@ fn main() -> std::io::Result<()> {
     let program = args[0].clone();
 
     let (msg_sender, rx) = mpsc::channel();
-    //thread::spawn(move || run_sender(rx));
+    thread::spawn(move || run_sender(rx));
 
     let (sx, msg_recv) = mpsc::channel();
-    //thread::spawn(move || poll_messages(sx, "127.0.0.1:53"));
+    thread::spawn(move || poll_messages(sx, "127.0.0.1:53"));
 
-    tui::run(msg_sender, msg_recv);
+    if let Err(e) = tui::run(msg_sender, msg_recv) {
+        eprintln!("{}", e);
+    }
 
     Ok(())
 }
@@ -50,7 +52,7 @@ fn run_sender(message_receiver: Receiver<ChatMessage>) -> Result<(), RecvError> 
         match listener.accept() {
             Ok((mut socket, remote_addr)) => {
                 // answer the request
-                println!("Got packet from {}", remote_addr);
+                // println!("Got packet from {}", remote_addr);
                 let inp: Vec<u8> = vec![
                     0, 148, 91, 185, 129, 128, 0, 1, 0, 2, 0, 0, 0, 0, 4, 105, 102, 115, 114, 2,
                     100, 101, 0, 0, 16, 0, 1, 192, 12, 0, 16, 0, 1, 0, 0, 2, 88, 0, 30, 29, 118,
@@ -107,9 +109,9 @@ fn poll_messages<A: ToSocketAddrs + Clone>(
                 Err(ref e) => panic!("{}", e),
             };
 
-            println!("Reply: {:?}", buf);
+            // println!("Reply: {:?}", buf);
             let parsed = DNSMessage::from(&buf[2..len + 2]);
-            println!("{:#?}", parsed);
+            // println!("{:#?}", parsed);
             received.push_back(parsed);
         }
 

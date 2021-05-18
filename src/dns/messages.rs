@@ -91,7 +91,6 @@ impl Into<Vec<u8>> for DNSMessage {
                         for content in contents {
                             let bytes = content.as_bytes();
                             if bytes.len() > u8::MAX as usize {
-                                #[cold]
                                 // truncate sequence
                                 msg.push(u8::MAX);
                                 msg.extend_from_slice(&bytes[..u16::MAX as usize]);
