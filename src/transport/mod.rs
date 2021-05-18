@@ -17,8 +17,8 @@ const MAX_MSG_LENGTH: usize = 65_254;
 /// Additionally, 25 bytes are reserved for the message timestamp, bringing the length per message down to 65,254 bytes.
 #[derive(Clone, Debug)]
 pub struct ChatMessage {
-    text: String,
-    sent: DateTime<Local>,
+    pub text: String,
+    pub sent: DateTime<Local>,
 }
 
 impl ChatMessage {

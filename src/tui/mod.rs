@@ -1,11 +1,13 @@
 use crate::state::{MoveDirection, State};
 use crate::transport::ChatMessage;
+use crate::tui::render::Render;
 use crossterm::{
     event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
     terminal, ExecutableCommand,
 };
 use std::{
     io::{self, Write},
+    iter::FromIterator,
     sync::mpsc::{Receiver, Sender},
     time::Duration,
 };
@@ -14,8 +16,8 @@ use tui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     terminal::Frame,
-    text::Span,
-    widgets::{Block, Borders, Paragraph},
+    text::{Span, Spans, Text},
+    widgets::{Block, Borders, Paragraph, Wrap},
     Terminal,
 };
 
@@ -55,7 +57,36 @@ impl<W: Write> Drop for Renderer<W> {
 }
 
 fn draw<W: Write>(frame: &mut Frame<'_, CrosstermBackend<W>>, state: &State, size: Rect) {
-    unimplemented!()
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(1)
+        .constraints([Constraint::Min(0), Constraint::Length(6)].as_ref())
+        .split(size);
+
+    let block = Block::default().title("Messages").borders(Borders::ALL);
+    let messages: Vec<Spans> = state.messages.clone().into_iter().map(|msg| msg.render()).collect();
+    let message_panel = Paragraph::new(messages)
+        .block(block)
+        .style(Style::default().fg(Color::White))
+        .alignment(Alignment::Left)
+        .wrap(Wrap { trim: false });
+
+    frame.render_widget(message_panel, chunks[0]);
+
+    let input_panel = Paragraph::new(String::from_iter(state.input.iter()))
+        .block(Block::default().borders(Borders::ALL).title(Span::styled(
+            "Compose",
+            Style::default().add_modifier(Modifier::BOLD),
+        )))
+        .style(Style::default().fg(Color::White))
+        .alignment(Alignment::Left)
+        .wrap(Wrap { trim: false });
+    frame.render_widget(input_panel, chunks[1]);
+    let inner_width = chunks[1].width - 2;
+    frame.set_cursor(
+        chunks[1].x + 1 + (state.cursor_pos as u16 % inner_width),
+        chunks[1].y + 1 + (state.cursor_pos as u16 / inner_width),
+    );
 }
 
 pub fn run(
@@ -66,27 +97,6 @@ pub fn run(
 
     let stdout = io::stdout();
     let mut renderer = Renderer::new(stdout)?;
-
-    //terminal.draw(|f| {
-    //let chunks = Layout::default()
-    //.direction(Direction::Vertical)
-    //.margin(1)
-    //.constraints([Constraint::Min(0), Constraint::Length(6)].as_ref())
-    //.split(f.size());
-    //let block = Block::default().title("Messages").borders(Borders::ALL);
-    //f.render_widget(block, chunks[0]);
-
-    //let input_panel = Paragraph::new("")
-    //.block(Block::default().borders(Borders::ALL).title(Span::styled(
-    //"Compose",
-    //Style::default().add_modifier(Modifier::BOLD),
-    //)))
-    //.style(Style::default().fg(Color::White))
-    //.alignment(Alignment::Left);
-    //// let block = Block::default().title("Compose").borders(Borders::ALL);
-    //f.render_widget(input_panel, chunks[1]);
-    //f.set_cursor(chunks[1].x + 1, chunks[1].y + 1)
-    //})?;
 
     'main: loop {
         // check for input from the Message receiver
