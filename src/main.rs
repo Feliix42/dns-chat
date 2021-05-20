@@ -81,6 +81,7 @@ fn poll_messages<A: ToSocketAddrs + Clone>(
     // Read until connection is reset (catch that error!)
     // sleep
     let mut received: VecDeque<DNSMessage> = VecDeque::new();
+    let mut buf = Vec::with_capacity(65535);
 
     loop {
         let message = DNSMessage::new_request(23481, "ifsr.de".into());
@@ -102,16 +103,19 @@ fn poll_messages<A: ToSocketAddrs + Clone>(
         // receive messages until everything has been transmitted
         'inner: loop {
             // TODO(feliix42): size ok? -> optimizations for less allocations?
-            let mut buf = [0; 500];
-            let len = match stream.read(&mut buf) {
+            let len = match stream.read_to_end(&mut buf) {
                 Ok(l) => l,
                 Err(ref e) if e.kind() == io::ErrorKind::ConnectionReset => break 'inner,
                 Err(ref e) => panic!("{}", e),
             };
 
-            // println!("Reply: {:?}", buf);
-            let parsed = DNSMessage::from(&buf[2..len + 2]);
-            // println!("{:#?}", parsed);
+            let packet_len = u16::from_be_bytes([buf[0], buf[1]]) as usize;
+            //println!("Length: {} (recv), {} (vec), {} (packet)", len, buf.len(), packet_len);
+            //println!("Reply: {:?}", buf);
+            // NOTE(feliix42): RFC 1035, 4.2.2 - TCP usage requires prepending the message with 2
+            // bytes length information that does not include said two bytes
+            let parsed = DNSMessage::from(&buf[2..packet_len + 2]);
+            println!("{:#?}", parsed);
             received.push_back(parsed);
         }
 
