@@ -6,19 +6,23 @@ use std::net::{TcpListener, TcpStream, ToSocketAddrs};
 use std::sync::mpsc::{self, Receiver, RecvError, SendError, Sender};
 use std::thread;
 use std::time::Duration;
+use dns::messages::DNSMessage;
+use dns::types::RecordData;
+use transport::ChatMessage;
+use opts::Opts;
+use clap::Clap;
 
 mod dns;
 mod state;
 mod transport;
 mod tui;
+mod opts;
 
-use dns::messages::DNSMessage;
-use dns::types::RecordData;
-use transport::ChatMessage;
 
 fn main() -> std::io::Result<()> {
-    let args: Vec<String> = env::args().collect();
-    let program = args[0].clone();
+    let opts: Opts = Opts::parse();
+    //let args: Vec<String> = env::args().collect();
+    //let program = args[0].clone();
 
     let (msg_sender, rx) = mpsc::channel();
     thread::spawn(move || run_sender(rx));
