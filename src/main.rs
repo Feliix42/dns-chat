@@ -1,34 +1,41 @@
+use clap::Clap;
+use dns::messages::DNSMessage;
+use dns::types::RecordData;
+use opts::Opts;
 use std::collections::VecDeque;
 use std::convert::TryFrom;
-use std::env;
 use std::io::{self, Read, Write};
 use std::net::{TcpListener, TcpStream, ToSocketAddrs};
 use std::sync::mpsc::{self, Receiver, RecvError, SendError, Sender};
 use std::thread;
 use std::time::Duration;
-use dns::messages::DNSMessage;
-use dns::types::RecordData;
 use transport::ChatMessage;
-use opts::Opts;
-use clap::Clap;
 
 mod dns;
+mod opts;
 mod state;
 mod transport;
 mod tui;
-mod opts;
-
 
 fn main() -> std::io::Result<()> {
     let opts: Opts = Opts::parse();
-    //let args: Vec<String> = env::args().collect();
-    //let program = args[0].clone();
+    let Opts {
+        target,
+        target_port,
+        listening_port,
+    } = opts;
 
     let (msg_sender, rx) = mpsc::channel();
-    thread::spawn(move || run_sender(rx));
+    let sender = thread::Builder::new().name("Sender".to_string());
+    sender
+        .spawn(move || run_sender(rx, listening_port))
+        .expect("Could not spawn sender thread");
 
     let (sx, msg_recv) = mpsc::channel();
-    thread::spawn(move || poll_messages(sx, "127.0.0.1:53"));
+    let receiver = thread::Builder::new().name("Receiver".to_string());
+    receiver
+        .spawn(move || poll_messages(sx, (target, target_port)))
+        .expect("Could not spawn receiver thread");
 
     if let Err(e) = tui::run(msg_sender, msg_recv) {
         eprintln!("{}", e);
@@ -37,11 +44,14 @@ fn main() -> std::io::Result<()> {
     Ok(())
 }
 
-fn run_sender(message_receiver: Receiver<ChatMessage>) -> Result<(), RecvError> {
+fn run_sender(
+    message_receiver: Receiver<ChatMessage>,
+    listening_port: u16,
+) -> Result<(), RecvError> {
     let mut buffer: VecDeque<RecordData> = VecDeque::new();
 
-    let listener = TcpListener::bind("0.0.0.0:53")
-        .expect("Could not bind listener to port 53. Is another DNS server running?");
+    let listener = TcpListener::bind(("0.0.0.0", listening_port))
+        .expect("Could not bind listener to port. Is something else running?");
     listener
         .set_nonblocking(true)
         .expect("Could not move listener to non-blocking mode.");
@@ -55,8 +65,14 @@ fn run_sender(message_receiver: Receiver<ChatMessage>) -> Result<(), RecvError> 
         // see if a message request arrived
         match listener.accept() {
             Ok((mut socket, remote_addr)) => {
-                // answer the request
                 // println!("Got packet from {}", remote_addr);
+                // answer the request if any data is available
+                //if !buffer.is_empty() {
+                //let mut msg = socket.
+                //for msg in buffer.drain(..) {
+                //let transferable = msg.
+                //}
+                //}
                 let inp: Vec<u8> = vec![
                     0, 148, 91, 185, 129, 128, 0, 1, 0, 2, 0, 0, 0, 0, 4, 105, 102, 115, 114, 2,
                     100, 101, 0, 0, 16, 0, 1, 192, 12, 0, 16, 0, 1, 0, 0, 2, 88, 0, 30, 29, 118,

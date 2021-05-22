@@ -127,13 +127,6 @@ impl From<RecordData> for ChatMessage {
     }
 }
 
-impl fmt::Display for ChatMessage {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        unimplemented!()
-        // write!(f, "")
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

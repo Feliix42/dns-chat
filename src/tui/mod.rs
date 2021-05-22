@@ -64,7 +64,12 @@ fn draw<W: Write>(frame: &mut Frame<'_, CrosstermBackend<W>>, state: &State, siz
         .split(size);
 
     let block = Block::default().title("Messages").borders(Borders::ALL);
-    let messages: Vec<Spans> = state.messages.clone().into_iter().map(|msg| msg.render()).collect();
+    let messages: Vec<Spans> = state
+        .messages
+        .clone()
+        .into_iter()
+        .map(|msg| msg.render())
+        .collect();
     let message_panel = Paragraph::new(messages)
         .block(block)
         .style(Style::default().fg(Color::White))
