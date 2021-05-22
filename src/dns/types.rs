@@ -3,6 +3,7 @@
 //! Since only a small fraction of the whole DNS specification is needed for this application, not everything has been implemented.
 
 /// Type Fields used in Reqource records and also in questions.
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, PartialEq)]
 pub enum RecordType {
     /// an IPv4 host address

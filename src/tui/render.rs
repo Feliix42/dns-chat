@@ -27,6 +27,6 @@ impl Render for (ChatMessage, MessageType) {
         };
         let timestamp = Span::from(msg.sent.time().format("(%H:%M) ").to_string());
 
-        Spans::from(vec![sender, timestamp, Span::from(msg.text.clone())])
+        Spans::from(vec![sender, timestamp, Span::from(msg.text)])
     }
 }

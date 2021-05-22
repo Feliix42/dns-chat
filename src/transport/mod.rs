@@ -1,7 +1,7 @@
 use crate::dns::types::RecordData;
 use crate::dns::{messages::DNSMessage, types::RecordType};
 use chrono::{DateTime, Local};
-use std::fmt;
+
 
 pub mod receiver;
 pub mod sender;
@@ -44,7 +44,7 @@ impl ChatMessage {
 
                 messages.push(Self {
                     text: msg,
-                    sent: timestamp.clone(),
+                    sent: timestamp,
                 });
                 msg = remainder;
             }

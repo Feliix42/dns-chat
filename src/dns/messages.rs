@@ -60,7 +60,7 @@ impl Into<Vec<u8>> for DNSMessage {
         // question section processing
         let questions = self.questions;
         for question in questions {
-            for s in question.name.split(".") {
+            for s in question.name.split('.') {
                 let bytes = s.as_bytes();
                 msg.push(u8::try_from(bytes.len()).unwrap());
                 msg.extend_from_slice(bytes);
@@ -74,7 +74,7 @@ impl Into<Vec<u8>> for DNSMessage {
         // answer section processing
         if let Some(answers) = self.answers {
             for answer in answers {
-                for s in answer.name.split(".") {
+                for s in answer.name.split('.') {
                     let bytes = s.as_bytes();
                     msg.push(u8::try_from(bytes.len()).unwrap());
                     msg.extend_from_slice(bytes);
@@ -180,12 +180,11 @@ pub struct DNSHeader {
 
 impl DNSHeader {
     pub fn new_request(id: u16) -> Self {
-        let mut header = Self::default();
-
-        header.id = id;
-        header.recursion_desired = true;
-
-        header
+        Self {
+            id,
+            recursion_desired: true,
+            ..Default::default()
+        }
     }
 }
 

@@ -64,7 +64,7 @@ fn run_sender(
 
         // see if a message request arrived
         match listener.accept() {
-            Ok((mut socket, remote_addr)) => {
+            Ok((mut socket, _remote_addr)) => {
                 // println!("Got packet from {}", remote_addr);
                 // answer the request if any data is available
                 //if !buffer.is_empty() {
@@ -84,7 +84,7 @@ fn run_sender(
                     95, 81, 57, 83, 95, 119, 115, 75, 51, 100, 52, 115, 50, 115, 113, 88, 69, 101,
                     56,
                 ];
-                socket.write(&inp).unwrap();
+                socket.write_all(&inp).unwrap();
                 // TODO: Split the message in small parts, assign them to packets
             }
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => (),
@@ -118,12 +118,12 @@ fn poll_messages<A: ToSocketAddrs + Clone>(
         // let mut stream = TcpStream::connect("192.168.178.44:53")?;
 
         // TODO(feliix42): error handling
-        stream.write(&msg).unwrap();
+        stream.write_all(&msg).unwrap();
 
         // receive messages until everything has been transmitted
         'inner: loop {
             // TODO(feliix42): size ok? -> optimizations for less allocations?
-            let len = match stream.read_to_end(&mut buf) {
+            let _len = match stream.read_to_end(&mut buf) {
                 Ok(l) => l,
                 Err(ref e) if e.kind() == io::ErrorKind::ConnectionReset => break 'inner,
                 Err(ref e) => panic!("{}", e),
