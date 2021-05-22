@@ -8,7 +8,7 @@ use std::convert::TryFrom;
 /// A single DNS message.
 ///
 /// This data structure is a simplified version of a DNS message, ignoring the `Authority` and `Additional` sections for resource records.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct DNSMessage {
     /// The DNS Header
     pub header: DNSHeader,
@@ -30,6 +30,10 @@ impl DNSMessage {
             questions,
             answers: None,
         }
+    }
+
+    pub fn add_answer(&mut self, answer: RecordData) {
+        unimplemented!()
     }
 }
 
@@ -114,10 +118,10 @@ impl From<&[u8]> for DNSMessage {
     fn from(msg: &[u8]) -> Self {
         let header = DNSHeader::from(&msg[0..12]);
 
-        println!(
-            "Parsed header. {} questions and {} answers",
-            header.question_count, header.answer_count
-        );
+        //println!(
+        //"Parsed header. {} questions and {} answers",
+        //header.question_count, header.answer_count
+        //);
 
         let mut pos = 12;
         let mut questions = Vec::with_capacity(header.question_count as usize);
@@ -126,8 +130,6 @@ impl From<&[u8]> for DNSMessage {
             questions.push(question);
             pos = new_pos;
         }
-
-        println!("Parsed questions");
 
         let answers = if header.answer_count > 0 {
             let mut answers = Vec::with_capacity(header.answer_count as usize);
@@ -150,7 +152,7 @@ impl From<&[u8]> for DNSMessage {
 }
 
 /// DNS header
-#[derive(Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct DNSHeader {
     /// A unique ID for referencing the request
     pub id: u16,
@@ -209,7 +211,7 @@ impl From<&[u8]> for DNSHeader {
 }
 
 /// A single DNS question
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct DNSQuestion {
     /// Domain name in question.
     pub name: String,
@@ -248,7 +250,7 @@ impl DNSQuestion {
 }
 
 /// A single reply to a DNS query.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct DNSAnswer {
     /// Domain name in question.
     pub name: String,
@@ -326,8 +328,7 @@ fn parse_domain_name(msg: &[u8], pos: &mut usize) -> String {
             first = false;
         }
 
-        let len = dbg!(msg[domain_pos] as usize);
-        println!("{}", is_backlink);
+        let len = msg[domain_pos] as usize;
 
         domain.push_str(&String::from_utf8_lossy(
             &msg[(domain_pos + 1)..(domain_pos + len + 1)],
@@ -335,7 +336,6 @@ fn parse_domain_name(msg: &[u8], pos: &mut usize) -> String {
 
         domain_pos += len + 1;
     }
-    println!("Finished parse: {}", domain);
 
     if is_backlink {
         // if it is a link, just increment by 2

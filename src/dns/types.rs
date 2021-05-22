@@ -4,7 +4,7 @@
 
 /// Type Fields used in Reqource records and also in questions.
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum RecordType {
     /// an IPv4 host address
     A,
@@ -88,7 +88,7 @@ impl From<u16> for RecordType {
 }
 
 /// The class of a resource record
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum RecordClass {
     /// The Internet
     IN,
@@ -124,7 +124,7 @@ impl From<u16> for RecordClass {
 }
 
 /// The RDATA field of a resource record. May not exceed 65,535 Bytes.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum RecordData {
     /// A TXT record. One String may not be longer than 255 bytes.
     Txt(Vec<String>),

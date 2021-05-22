@@ -49,6 +49,8 @@ fn run_sender(
     listening_port: u16,
 ) -> Result<(), RecvError> {
     let mut buffer: VecDeque<RecordData> = VecDeque::new();
+    // buffer for parsing incoming messages
+    let mut reading_buffer = Vec::with_capacity(65535);
 
     let listener = TcpListener::bind(("0.0.0.0", listening_port))
         .expect("Could not bind listener to port. Is something else running?");
@@ -56,7 +58,7 @@ fn run_sender(
         .set_nonblocking(true)
         .expect("Could not move listener to non-blocking mode.");
 
-    loop {
+    'inner: loop {
         // buffer as many messages as possible
         while let Ok(msg) = message_receiver.try_recv() {
             buffer.push_back(msg.into());
@@ -67,12 +69,34 @@ fn run_sender(
             Ok((mut socket, _remote_addr)) => {
                 // println!("Got packet from {}", remote_addr);
                 // answer the request if any data is available
-                //if !buffer.is_empty() {
-                //let mut msg = socket.
-                //for msg in buffer.drain(..) {
-                //let transferable = msg.
-                //}
-                //}
+                if !buffer.is_empty() {
+                    // read the request from the socket into a buffer & parse it
+                    match socket.read_to_end(&mut reading_buffer) {
+                        Ok(_) => (),
+                        Err(ref e) if e.kind() == io::ErrorKind::ConnectionReset => continue 'inner,
+                        Err(ref e) => panic!("{}", e),
+                    }
+
+                    let packet_len =
+                        u16::from_be_bytes([reading_buffer[0], reading_buffer[1]]) as usize;
+
+                    // NOTE(feliix42): RFC 1035, 4.2.2 - TCP usage requires prepending the message with 2
+                    // bytes length information that does not include said two bytes
+                    let parsed = DNSMessage::from(&reading_buffer[2..packet_len + 2]);
+                    reading_buffer.clear();
+
+                    for msg in buffer.drain(..) {
+                        // translate each message in a DNS reply & send it:
+                        // - clone the received message, increment the counter in the DNS message &
+                        // add reply
+                        // - then send
+                        let answer: RecordData = msg.into();
+                        let mut reply = parsed.clone();
+                        reply.add_answer(answer);
+                        let sendable: Vec<u8> = reply.into();
+                        socket.write_all(&sendable);
+                    }
+                }
                 let inp: Vec<u8> = vec![
                     0, 148, 91, 185, 129, 128, 0, 1, 0, 2, 0, 0, 0, 0, 4, 105, 102, 115, 114, 2,
                     100, 101, 0, 0, 16, 0, 1, 192, 12, 0, 16, 0, 1, 0, 0, 2, 88, 0, 30, 29, 118,
@@ -106,7 +130,7 @@ fn poll_messages<A: ToSocketAddrs + Clone>(
     loop {
         let message = DNSMessage::new_request(23481, "ifsr.de".into());
         let mut msg: Vec<u8> = message.into();
-        // println!("{:?}", msg);
+
         // prepend the length of the message for TCP transfer
         let len = u16::try_from(msg.len()).unwrap();
         let split = len.to_be_bytes();
@@ -123,19 +147,19 @@ fn poll_messages<A: ToSocketAddrs + Clone>(
         // receive messages until everything has been transmitted
         'inner: loop {
             // TODO(feliix42): size ok? -> optimizations for less allocations?
-            let _len = match stream.read_to_end(&mut buf) {
-                Ok(l) => l,
+            // TODO(feliix42): does this read beyond the borders of individual packets?
+            match stream.read_to_end(&mut buf) {
+                Ok(_) => (),
                 Err(ref e) if e.kind() == io::ErrorKind::ConnectionReset => break 'inner,
                 Err(ref e) => panic!("{}", e),
-            };
+            }
 
             let packet_len = u16::from_be_bytes([buf[0], buf[1]]) as usize;
-            //println!("Length: {} (recv), {} (vec), {} (packet)", len, buf.len(), packet_len);
-            //println!("Reply: {:?}", buf);
+
             // NOTE(feliix42): RFC 1035, 4.2.2 - TCP usage requires prepending the message with 2
             // bytes length information that does not include said two bytes
             let parsed = DNSMessage::from(&buf[2..packet_len + 2]);
-            println!("{:#?}", parsed);
+            buf.clear();
             received.push_back(parsed);
         }
 

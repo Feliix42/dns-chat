@@ -2,7 +2,6 @@ use crate::dns::types::RecordData;
 use crate::dns::{messages::DNSMessage, types::RecordType};
 use chrono::{DateTime, Local};
 
-
 pub mod receiver;
 pub mod sender;
 
