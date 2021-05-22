@@ -33,7 +33,17 @@ impl DNSMessage {
     }
 
     pub fn add_answer(&mut self, answer: RecordData) {
-        unimplemented!()
+        let reply_block = vec![DNSAnswer::create_from_question(&self.questions[0], answer)];
+        let reply_count = reply_block.len() as u16;
+        // TODO(feliix42): We could take multiple answers here and package them together nicely
+        self.answers = Some(reply_block);
+
+        // TODO(feliix42): carefully check the fields on this?
+        // adjust header fields
+        self.header.is_response = true;
+        self.header.recursion_available = self.header.recursion_desired;
+        self.header.response_code = 0;
+        self.header.answer_count = reply_count;
     }
 }
 
@@ -152,7 +162,7 @@ impl From<&[u8]> for DNSMessage {
 }
 
 /// DNS header
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct DNSHeader {
     /// A unique ID for referencing the request
     pub id: u16,
@@ -303,6 +313,23 @@ impl DNSAnswer {
         };
 
         (answer, pos)
+    }
+
+    fn create_from_question(question: &DNSQuestion, data: RecordData) -> Self {
+        let data_length = match &data {
+            RecordData::Txt(content) => {
+                content.iter().fold(0, |acc, s| acc + s.as_bytes().len()) as u16
+            }
+            RecordData::Unsupported => panic!("Unsupported RecordData type!"),
+        };
+        Self {
+            name: question.name.clone(),
+            rtype: question.qtype,
+            rclass: question.qclass,
+            ttl: 0,
+            data_length,
+            record: data,
+        }
     }
 }
 

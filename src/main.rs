@@ -67,7 +67,6 @@ fn run_sender(
         // see if a message request arrived
         match listener.accept() {
             Ok((mut socket, _remote_addr)) => {
-                // println!("Got packet from {}", remote_addr);
                 // answer the request if any data is available
                 if !buffer.is_empty() {
                     // read the request from the socket into a buffer & parse it
@@ -90,26 +89,13 @@ fn run_sender(
                         // - clone the received message, increment the counter in the DNS message &
                         // add reply
                         // - then send
-                        let answer: RecordData = msg.into();
                         let mut reply = parsed.clone();
-                        reply.add_answer(answer);
+                        reply.add_answer(msg);
                         let sendable: Vec<u8> = reply.into();
-                        socket.write_all(&sendable);
+                        // TODO(feliix42): Error handling
+                        socket.write_all(&sendable).unwrap();
                     }
                 }
-                let inp: Vec<u8> = vec![
-                    0, 148, 91, 185, 129, 128, 0, 1, 0, 2, 0, 0, 0, 0, 4, 105, 102, 115, 114, 2,
-                    100, 101, 0, 0, 16, 0, 1, 192, 12, 0, 16, 0, 1, 0, 0, 2, 88, 0, 30, 29, 118,
-                    61, 115, 112, 102, 49, 32, 105, 112, 52, 58, 49, 52, 49, 46, 51, 48, 46, 51,
-                    48, 46, 49, 51, 48, 32, 126, 97, 108, 108, 192, 12, 0, 16, 0, 1, 0, 0, 2, 88,
-                    0, 69, 68, 103, 111, 111, 103, 108, 101, 45, 115, 105, 116, 101, 45, 118, 101,
-                    114, 105, 102, 105, 99, 97, 116, 105, 111, 110, 61, 55, 48, 45, 68, 85, 116,
-                    65, 111, 49, 68, 103, 76, 119, 85, 120, 57, 74, 110, 106, 77, 110, 56, 77, 103,
-                    95, 81, 57, 83, 95, 119, 115, 75, 51, 100, 52, 115, 50, 115, 113, 88, 69, 101,
-                    56,
-                ];
-                socket.write_all(&inp).unwrap();
-                // TODO: Split the message in small parts, assign them to packets
             }
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => (),
             Err(e) => panic!("encountered IO error: {}", e),
