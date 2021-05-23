@@ -123,8 +123,15 @@ fn poll_messages<A: ToSocketAddrs + Clone>(
         msg.insert(0, split[1]);
         msg.insert(0, split[0]);
 
-        let mut stream =
-            TcpStream::connect(target.clone()).expect("Couldn't connect to target DNS server");
+        let mut stream = match TcpStream::connect(target.clone()) {
+            Ok(con) => con,
+            Err(_) => {
+                // Couldn't connect to target DNS server
+                // TODO: Specifically test for connection refused here!
+                thread::sleep(Duration::from_secs(5));
+                continue;
+            }
+        };
         // let mut stream = TcpStream::connect("192.168.178.44:53")?;
 
         // TODO(feliix42): error handling

@@ -82,19 +82,19 @@ impl Into<RecordData> for ChatMessage {
         let mut msg_str = self.text;
         msg_str.insert_str(0, &self.sent.to_rfc3339());
 
-        let mut pos = 0;
         let mut strings = Vec::new();
 
         while !msg_str.is_empty() {
-            let offset = if msg_str.is_char_boundary(pos + 255) {
+            let offset = if msg_str.len() < 255 {
+                msg_str.len()
+            } else if msg_str.is_char_boundary(255) {
                 255
             } else {
                 254
             };
 
-            let remainder = msg_str.split_off(pos + offset);
+            let remainder = msg_str.split_off(offset);
             strings.push(msg_str);
-            pos += offset;
             msg_str = remainder;
         }
 
