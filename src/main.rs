@@ -5,7 +5,7 @@ use opts::Opts;
 use std::collections::VecDeque;
 use std::convert::TryFrom;
 use std::io::{self, Read, Write};
-use std::net::{TcpListener, TcpStream, ToSocketAddrs};
+use std::net::{Shutdown, TcpListener, TcpStream, ToSocketAddrs};
 use std::sync::mpsc::{self, Receiver, RecvError, SendError, Sender};
 use std::thread;
 use std::time::Duration;
@@ -50,7 +50,7 @@ fn run_sender(
 ) -> Result<(), RecvError> {
     let mut buffer: VecDeque<RecordData> = VecDeque::new();
     // buffer for parsing incoming messages
-    let mut reading_buffer = Vec::with_capacity(65535);
+    let mut reading_buffer = [0; 65535];
 
     let listener = TcpListener::bind(("0.0.0.0", listening_port))
         .expect("Could not bind listener to port. Is something else running?");
@@ -68,21 +68,36 @@ fn run_sender(
         match listener.accept() {
             Ok((mut socket, _remote_addr)) => {
                 // answer the request if any data is available
-                if !buffer.is_empty() {
-                    // read the request from the socket into a buffer & parse it
-                    match socket.read_to_end(&mut reading_buffer) {
-                        Ok(_) => (),
-                        Err(ref e) if e.kind() == io::ErrorKind::ConnectionReset => continue 'inner,
-                        Err(ref e) => panic!("{}", e),
-                    }
+                eprintln!(
+                    "[sender] got request for messages from {}, {}",
+                    _remote_addr,
+                    socket.peer_addr().unwrap()
+                );
+                eprintln!("[sender] have {} messages to transmit", buffer.len());
+                socket.set_nonblocking(false).unwrap();
+                // read the request from the socket into a buffer & parse it
+                let read_length = match socket.read(&mut reading_buffer) {
+                    Ok(s) => s,
+                    Err(ref e) if e.kind() == io::ErrorKind::ConnectionReset => continue 'inner,
+                    Err(ref e) => panic!("{:?}", e),
+                };
+                eprintln!("[sender] Finished reading request");
+                eprintln!("[sender] stream error? {:?}", socket.take_error().unwrap());
 
+                if !buffer.is_empty() {
                     let packet_len =
                         u16::from_be_bytes([reading_buffer[0], reading_buffer[1]]) as usize;
 
+                    if read_length != packet_len + 2 {
+                        eprintln!(
+                            "[sender] Received {} bytes, but packet reports {} bytes!",
+                            read_length,
+                            packet_len + 2
+                        );
+                    }
                     // NOTE(feliix42): RFC 1035, 4.2.2 - TCP usage requires prepending the message with 2
                     // bytes length information that does not include said two bytes
-                    let parsed = DNSMessage::from(&reading_buffer[2..packet_len + 2]);
-                    reading_buffer.clear();
+                    let parsed = dbg!(DNSMessage::from(&reading_buffer[2..packet_len + 2]));
 
                     for msg in buffer.drain(..) {
                         // translate each message in a DNS reply & send it:
@@ -91,11 +106,25 @@ fn run_sender(
                         // - then send
                         let mut reply = parsed.clone();
                         reply.add_answer(msg);
-                        let sendable: Vec<u8> = reply.into();
+                        eprintln!("[sender] message: {:?}", reply);
+                        let mut sendable: Vec<u8> = reply.into();
+                        eprintln!("message length: {}", sendable.len());
+                        // prepend the length of the message for TCP transfer
+                        let len = u16::try_from(sendable.len()).unwrap();
+                        let split = len.to_be_bytes();
+                        sendable.insert(0, split[1]);
+                        sendable.insert(0, split[0]);
                         // TODO(feliix42): Error handling
-                        socket.write_all(&sendable).unwrap();
+                        socket.write(&sendable).unwrap();
+                        socket.flush().unwrap();
                     }
                 }
+                // clear the buffer
+                for i in 0..read_length {
+                    // please rustc, vectorize this
+                    reading_buffer[i] = 0;
+                }
+                socket.shutdown(Shutdown::Both).unwrap();
             }
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => (),
             Err(e) => panic!("encountered IO error: {}", e),
@@ -111,9 +140,10 @@ fn poll_messages<A: ToSocketAddrs + Clone>(
     // Read until connection is reset (catch that error!)
     // sleep
     let mut received: VecDeque<DNSMessage> = VecDeque::new();
-    let mut buf = Vec::with_capacity(65535);
+    let mut buf = [0; 65535];
 
     loop {
+        eprintln!("[receiver] woke up");
         let message = DNSMessage::new_request(23481, "ifsr.de".into());
         let mut msg: Vec<u8> = message.into();
 
@@ -125,45 +155,63 @@ fn poll_messages<A: ToSocketAddrs + Clone>(
 
         let mut stream = match TcpStream::connect(target.clone()) {
             Ok(con) => con,
-            Err(_) => {
+            Err(e) if e.kind() == io::ErrorKind::ConnectionRefused => {
                 // Couldn't connect to target DNS server
-                // TODO: Specifically test for connection refused here!
                 thread::sleep(Duration::from_secs(5));
                 continue;
             }
+            Err(e) => panic!("{}", e),
         };
-        // let mut stream = TcpStream::connect("192.168.178.44:53")?;
 
         // TODO(feliix42): error handling
-        stream.write_all(&msg).unwrap();
+        stream.write(&msg).unwrap();
+        stream.flush().unwrap();
 
         // receive messages until everything has been transmitted
         'inner: loop {
             // TODO(feliix42): size ok? -> optimizations for less allocations?
             // TODO(feliix42): does this read beyond the borders of individual packets?
-            match stream.read_to_end(&mut buf) {
-                Ok(_) => (),
+            let read_length = match stream.read(&mut buf) {
+                Ok(0) => {
+                    eprintln!("Received empty message???");
+                    break 'inner;
+                }
+                Ok(sz) => sz,
                 Err(ref e) if e.kind() == io::ErrorKind::ConnectionReset => break 'inner,
                 Err(ref e) => panic!("{}", e),
-            }
+            };
+
+            eprintln!("Received message of length {}.", read_length);
 
             let packet_len = u16::from_be_bytes([buf[0], buf[1]]) as usize;
 
             // NOTE(feliix42): RFC 1035, 4.2.2 - TCP usage requires prepending the message with 2
             // bytes length information that does not include said two bytes
             let parsed = DNSMessage::from(&buf[2..packet_len + 2]);
-            buf.clear();
+
+            // clear the buffer
+            for i in 0..read_length {
+                buf[i] = 0;
+            }
             received.push_back(parsed);
         }
 
         if !received.is_empty() {
             // is messages were received, convert them and send them back to the main thread
             for msg in received.drain(..) {
+                eprintln!("[receiver] {:#?}", msg);
                 let chat_messages = ChatMessage::from_dns(msg);
+                eprintln!("Parsed: {:?}", chat_messages);
                 for chat_msg in chat_messages {
                     message_sender.send(chat_msg)?;
                 }
             }
+        }
+
+        match stream.shutdown(Shutdown::Both) {
+            Ok(()) => (),
+            Err(e) if e.kind() == io::ErrorKind::NotConnected => (),
+            Err(e) => panic!("{}", e),
         }
 
         thread::sleep(Duration::from_secs(5));

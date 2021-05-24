@@ -1,6 +1,6 @@
 use crate::dns::types::RecordData;
 use crate::dns::{messages::DNSMessage, types::RecordType};
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, SecondsFormat};
 
 pub mod receiver;
 pub mod sender;
@@ -80,7 +80,7 @@ impl Into<RecordData> for ChatMessage {
     fn into(self) -> RecordData {
         // append the time stamp to the message
         let mut msg_str = self.text;
-        msg_str.insert_str(0, &self.sent.to_rfc3339());
+        msg_str.insert_str(0, &self.sent.to_rfc3339_opts(SecondsFormat::Secs, true));
 
         let mut strings = Vec::new();
 
