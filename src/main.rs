@@ -68,21 +68,14 @@ fn run_sender(
         match listener.accept() {
             Ok((mut socket, _remote_addr)) => {
                 // answer the request if any data is available
-                eprintln!(
-                    "[sender] got request for messages from {}, {}",
-                    _remote_addr,
-                    socket.peer_addr().unwrap()
-                );
-                eprintln!("[sender] have {} messages to transmit", buffer.len());
                 socket.set_nonblocking(false).unwrap();
+
                 // read the request from the socket into a buffer & parse it
                 let read_length = match socket.read(&mut reading_buffer) {
                     Ok(s) => s,
                     Err(ref e) if e.kind() == io::ErrorKind::ConnectionReset => continue 'inner,
                     Err(ref e) => panic!("{:?}", e),
                 };
-                eprintln!("[sender] Finished reading request");
-                eprintln!("[sender] stream error? {:?}", socket.take_error().unwrap());
 
                 if !buffer.is_empty() {
                     let packet_len =
@@ -95,30 +88,31 @@ fn run_sender(
                             packet_len + 2
                         );
                     }
+
                     // NOTE(feliix42): RFC 1035, 4.2.2 - TCP usage requires prepending the message with 2
                     // bytes length information that does not include said two bytes
-                    let parsed = dbg!(DNSMessage::from(&reading_buffer[2..packet_len + 2]));
+                    let parsed = DNSMessage::from(&reading_buffer[2..packet_len + 2]);
 
                     for msg in buffer.drain(..) {
                         // translate each message in a DNS reply & send it:
-                        // - clone the received message, increment the counter in the DNS message &
-                        // add reply
-                        // - then send
+                        // - clone the received message, add reply
                         let mut reply = parsed.clone();
                         reply.add_answer(msg);
-                        eprintln!("[sender] message: {:?}", reply);
                         let mut sendable: Vec<u8> = reply.into();
-                        eprintln!("message length: {}", sendable.len());
+
                         // prepend the length of the message for TCP transfer
                         let len = u16::try_from(sendable.len()).unwrap();
                         let split = len.to_be_bytes();
                         sendable.insert(0, split[1]);
                         sendable.insert(0, split[0]);
+
                         // TODO(feliix42): Error handling
+                        // - then send
                         socket.write(&sendable).unwrap();
                         socket.flush().unwrap();
                     }
                 }
+
                 // clear the buffer
                 for i in 0..read_length {
                     // please rustc, vectorize this
@@ -143,7 +137,6 @@ fn poll_messages<A: ToSocketAddrs + Clone>(
     let mut buf = [0; 65535];
 
     loop {
-        eprintln!("[receiver] woke up");
         let message = DNSMessage::new_request(23481, "ifsr.de".into());
         let mut msg: Vec<u8> = message.into();
 
@@ -169,19 +162,16 @@ fn poll_messages<A: ToSocketAddrs + Clone>(
 
         // receive messages until everything has been transmitted
         'inner: loop {
-            // TODO(feliix42): size ok? -> optimizations for less allocations?
             // TODO(feliix42): does this read beyond the borders of individual packets?
             let read_length = match stream.read(&mut buf) {
                 Ok(0) => {
-                    eprintln!("Received empty message???");
+                    eprintln!("[receiver] received empty message");
                     break 'inner;
                 }
                 Ok(sz) => sz,
                 Err(ref e) if e.kind() == io::ErrorKind::ConnectionReset => break 'inner,
                 Err(ref e) => panic!("{}", e),
             };
-
-            eprintln!("Received message of length {}.", read_length);
 
             let packet_len = u16::from_be_bytes([buf[0], buf[1]]) as usize;
 
@@ -199,9 +189,7 @@ fn poll_messages<A: ToSocketAddrs + Clone>(
         if !received.is_empty() {
             // is messages were received, convert them and send them back to the main thread
             for msg in received.drain(..) {
-                eprintln!("[receiver] {:#?}", msg);
                 let chat_messages = ChatMessage::from_dns(msg);
-                eprintln!("Parsed: {:?}", chat_messages);
                 for chat_msg in chat_messages {
                     message_sender.send(chat_msg)?;
                 }

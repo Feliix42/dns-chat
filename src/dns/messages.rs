@@ -128,11 +128,6 @@ impl From<&[u8]> for DNSMessage {
     fn from(msg: &[u8]) -> Self {
         let header = DNSHeader::from(&msg[0..12]);
 
-        //println!(
-        //"Parsed header. {} questions and {} answers",
-        //header.question_count, header.answer_count
-        //);
-
         let mut pos = 12;
         let mut questions = Vec::with_capacity(header.question_count as usize);
         for _ in 0..header.question_count {
@@ -412,23 +407,89 @@ mod tests {
         let parsed = DNSMessage::from(msg.as_slice());
 
         assert_eq!(message, parsed);
-    } 
+    }
 
     #[test]
     fn conversion_answer_to_u8() {
-        let input = DNSMessage { header: DNSHeader { id: 23481, is_response: true, opcode: 0, authoritative_answer: false, is_truncated: false, recursion_desired: true, recursion_available: true, response_code: 0, question_count: 1, answer_count: 1, ns_record_count: 0, ar_count: 0 }, questions: vec![DNSQuestion { name: "ifsr.de".into(), qtype: RecordType::TXT, qclass: RecordClass::IN }], answers: Some(vec![DNSAnswer { name: "ifsr.de".into(), rtype: RecordType::TXT, rclass: RecordClass::IN, ttl: 0, data_length: 36, record: RecordData::Txt(vec!["2021-05-24T19:48:38.379390+02:00test".into()]) }]) };
+        let input = DNSMessage {
+            header: DNSHeader {
+                id: 23481,
+                is_response: true,
+                opcode: 0,
+                authoritative_answer: false,
+                is_truncated: false,
+                recursion_desired: true,
+                recursion_available: true,
+                response_code: 0,
+                question_count: 1,
+                answer_count: 1,
+                ns_record_count: 0,
+                ar_count: 0,
+            },
+            questions: vec![DNSQuestion {
+                name: "ifsr.de".into(),
+                qtype: RecordType::TXT,
+                qclass: RecordClass::IN,
+            }],
+            answers: Some(vec![DNSAnswer {
+                name: "ifsr.de".into(),
+                rtype: RecordType::TXT,
+                rclass: RecordClass::IN,
+                ttl: 0,
+                data_length: 36,
+                record: RecordData::Txt(vec!["2021-05-24T19:48:38.379390+02:00test".into()]),
+            }]),
+        };
         let msg: Vec<u8> = input.into();
 
-        let message: Vec<u8> = vec![91, 185, 129, 128, 0, 1, 0, 1, 0, 0, 0, 0, 4, 105, 102, 115, 114, 2, 100, 101, 0, 0, 16, 0, 1, 4, 105, 102, 115, 114, 2, 100, 101, 0, 0, 16, 0, 1, 0, 0, 0, 0, 0, 36, 36, 50, 48, 50, 49, 45, 48, 53, 45, 50, 52, 84, 49, 57, 58, 52, 56, 58, 51, 56, 46, 51, 55, 57, 51, 57, 48, 43, 48, 50, 58, 48, 48, 116, 101, 115, 116];
+        let message: Vec<u8> = vec![
+            91, 185, 129, 128, 0, 1, 0, 1, 0, 0, 0, 0, 4, 105, 102, 115, 114, 2, 100, 101, 0, 0,
+            16, 0, 1, 4, 105, 102, 115, 114, 2, 100, 101, 0, 0, 16, 0, 1, 0, 0, 0, 0, 0, 36, 36,
+            50, 48, 50, 49, 45, 48, 53, 45, 50, 52, 84, 49, 57, 58, 52, 56, 58, 51, 56, 46, 51, 55,
+            57, 51, 57, 48, 43, 48, 50, 58, 48, 48, 116, 101, 115, 116,
+        ];
 
         assert_eq!(msg, message);
     }
 
     #[test]
     fn conversion_u8_to_answer() {
-        let expected = DNSMessage { header: DNSHeader { id: 23481, is_response: true, opcode: 0, authoritative_answer: false, is_truncated: false, recursion_desired: true, recursion_available: true, response_code: 0, question_count: 1, answer_count: 1, ns_record_count: 0, ar_count: 0 }, questions: vec![DNSQuestion { name: "ifsr.de".into(), qtype: RecordType::TXT, qclass: RecordClass::IN }], answers: Some(vec![DNSAnswer { name: "ifsr.de".into(), rtype: RecordType::TXT, rclass: RecordClass::IN, ttl: 0, data_length: 36, record: RecordData::Txt(vec!["2021-05-24T19:48:38.379390+02:00test".into()]) }]) };
+        let expected = DNSMessage {
+            header: DNSHeader {
+                id: 23481,
+                is_response: true,
+                opcode: 0,
+                authoritative_answer: false,
+                is_truncated: false,
+                recursion_desired: true,
+                recursion_available: true,
+                response_code: 0,
+                question_count: 1,
+                answer_count: 1,
+                ns_record_count: 0,
+                ar_count: 0,
+            },
+            questions: vec![DNSQuestion {
+                name: "ifsr.de".into(),
+                qtype: RecordType::TXT,
+                qclass: RecordClass::IN,
+            }],
+            answers: Some(vec![DNSAnswer {
+                name: "ifsr.de".into(),
+                rtype: RecordType::TXT,
+                rclass: RecordClass::IN,
+                ttl: 0,
+                data_length: 36,
+                record: RecordData::Txt(vec!["2021-05-24T19:48:38.379390+02:00test".into()]),
+            }]),
+        };
 
-        let input: Vec<u8> = vec![91, 185, 129, 128, 0, 1, 0, 1, 0, 0, 0, 0, 4, 105, 102, 115, 114, 2, 100, 101, 0, 0, 16, 0, 1, 4, 105, 102, 115, 114, 2, 100, 101, 0, 0, 16, 0, 1, 0, 0, 0, 0, 0, 36, 36, 50, 48, 50, 49, 45, 48, 53, 45, 50, 52, 84, 49, 57, 58, 52, 56, 58, 51, 56, 46, 51, 55, 57, 51, 57, 48, 43, 48, 50, 58, 48, 48, 116, 101, 115, 116];
+        let input: Vec<u8> = vec![
+            91, 185, 129, 128, 0, 1, 0, 1, 0, 0, 0, 0, 4, 105, 102, 115, 114, 2, 100, 101, 0, 0,
+            16, 0, 1, 4, 105, 102, 115, 114, 2, 100, 101, 0, 0, 16, 0, 1, 0, 0, 0, 0, 0, 36, 36,
+            50, 48, 50, 49, 45, 48, 53, 45, 50, 52, 84, 49, 57, 58, 52, 56, 58, 51, 56, 46, 51, 55,
+            57, 51, 57, 48, 43, 48, 50, 58, 48, 48, 116, 101, 115, 116,
+        ];
 
         let answer = DNSMessage::from(input.as_slice());
         // let msg = DNSMessage::from(message);
