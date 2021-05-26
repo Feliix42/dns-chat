@@ -80,7 +80,7 @@ impl Into<RecordData> for ChatMessage {
     fn into(self) -> RecordData {
         // append the time stamp to the message
         let mut msg_str = self.text;
-        msg_str.insert_str(0, &self.sent.to_rfc3339_opts(SecondsFormat::Secs, true));
+        msg_str.insert_str(0, &self.sent.to_rfc3339_opts(SecondsFormat::Secs, false));
 
         let mut strings = Vec::new();
 
@@ -132,13 +132,16 @@ mod tests {
 
     #[test]
     fn conversion_to_record() {
+        let date = DateTime::from(DateTime::parse_from_rfc3339("2020-12-24T18:34:16+01:00").unwrap());
+        let expected_date_string = date.to_rfc3339_opts(SecondsFormat::Secs, false);
+
         let msg = ChatMessage {
             text: String::from("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
-            sent: DateTime::from(DateTime::parse_from_rfc3339("2020-12-24T18:34:16+01:00").unwrap())
+            sent: date
         };
 
         let expected = RecordData::Txt(vec![
-            String::from("2020-12-24T18:34:16+01:00aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+            format!("{date}aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", date=expected_date_string),
             String::from("aaaaaaaaaaaaaaaaaaaaaaaaa")
         ]);
 
