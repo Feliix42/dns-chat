@@ -2,7 +2,7 @@ use clap::Clap;
 
 #[derive(Clap)]
 #[clap(
-    name = "sagishi",
+    name = "kakure",
     version = "1.0",
     author = "Felix Wittwer <hallo@felixwittwer.de>",
     about = "A stupid simple proof-of-concept chat application that uses the DNS protocol to exchange messages."
