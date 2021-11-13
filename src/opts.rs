@@ -8,14 +8,12 @@ use clap::Clap;
     about = "A stupid simple proof-of-concept chat application that uses the DNS protocol to exchange messages."
 )]
 pub struct Opts {
-    /// Sets a custom config file. Could have been an Option<T> with no default too
-    //#[clap(short, long, default_value = "default.conf")]
-    #[clap(about = "Target IP address")]
+    /// Target IP address
     pub target: String,
-    /// Some input. Because this isn't an Option<T> it's required to be used
+    /// Target port on the other side.
     #[clap(short, long, default_value = "53")]
     pub target_port: u16,
-    /// A level of verbosity, and can be used multiple times
+    /// Port the client listens on.
     #[clap(short, long, default_value = "53")]
     pub listening_port: u16,
 }

@@ -47,7 +47,7 @@ pub fn poll_messages<A: ToSocketAddrs + Clone>(
             // TODO(feliix42): does this read beyond the borders of individual packets?
             let read_length = match stream.read(&mut buf) {
                 Ok(0) => {
-                    eprintln!("[receiver] received empty message");
+                    //eprintln!("[receiver] received empty message");
                     break 'inner;
                 }
                 Ok(sz) => sz,
